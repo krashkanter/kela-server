@@ -1,0 +1,55 @@
+name: phone-gateway
+services:
+  gateway:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/routes:/etc/nginx/conf.d:ro
+    networks: [edge]
+    depends_on: [hello, example]
+    security_opt: ["no-new-privileges:true"]
+  hello:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+    networks: [edge]
+    security_opt: ["no-new-privileges:true"]
+  example:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    volumes:
+      - ./example:/usr/share/nginx/html:ro
+    networks: [edge]
+    security_opt: ["no-new-privileges:true"]
+  quick-tunnel:
+    image: cloudflare/cloudflared:latest
+    group_add: ["3003"]
+    user: "0:0"
+    cap_drop: [ALL]
+    read_only: true
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --protocol http2 --url http://gateway:80
+    networks: [edge]
+    depends_on: [gateway]
+    profiles: [quick]
+    security_opt: ["no-new-privileges:true"]
+  cloudflare:
+    image: cloudflare/cloudflared:latest
+    group_add: ["3003"]
+    user: "0:0"
+    cap_drop: [ALL]
+    read_only: true
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --protocol http2 run --token-file /run/secrets/tunnel-token
+    volumes:
+      - /etc/cloudflared/tunnel-token:/run/secrets/tunnel-token:ro
+    networks: [edge]
+    depends_on: [gateway]
+    profiles: [cloudflare]
+    security_opt: ["no-new-privileges:true"]
+networks:
+  edge:
+    name: phone-edge

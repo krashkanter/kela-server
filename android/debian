@@ -1,0 +1,4 @@
+#!/system/bin/sh
+set -eu
+root=/data/local/debian
+exec chroot "$root" /usr/bin/env -i HOME=/root TERM=xterm PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin "$@"

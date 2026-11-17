@@ -1,0 +1,7 @@
+model:
+  provider: openrouter
+  default: qwen/qwen3.5-35b-a3b
+terminal:
+  backend: local
+  cwd: /opt/data/workspace
+  home_mode: profile

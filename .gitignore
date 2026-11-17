@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+secrets/
+**/data/
+*.ext4
+*.img
+*.tar
+*.tar.gz
+*.log
+__pycache__/
+*.pyc
+token
+tunnel-token
+auth.json
+state.db*

@@ -1,0 +1,18 @@
+name: phone-hermes
+services:
+  hermes:
+    image: nousresearch/hermes-agent:v0.23.2@sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459
+    container_name: phone-hermes
+    restart: unless-stopped
+    environment:
+      HERMES_UID: "2000"
+      HERMES_GID: "3003"
+      HERMES_TIMEZONE: Asia/Kolkata
+      TZ: Asia/Kolkata
+    volumes:
+      - ./data:/opt/data
+    command: [gateway, run]
+    security_opt: ["no-new-privileges:true"]
+    networks: [agent]
+networks:
+  agent: {}
