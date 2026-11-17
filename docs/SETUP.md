@@ -41,6 +41,11 @@ Use the app repository's existing installation/pairing procedure for the Android
 
 `start.sh` prepares recursive chroot mounts with slave propagation, labels/mounts the ext4 storage and starts dockerd with `DOCKER_RAMDISK=true`. The daemon config allocates networks from `172.28.0.0/16`; startup adds scoped policy routes for that subnet through Android's named `wlan0` routing table. Change the subnet and route rules together when adapting it. Android's firewall is not flushed. Hybrid cgroups still limit some resource controls.
 
+The chroot root bind is detected through `/proc/self/mountinfo`. Android's
+`mountpoint` reports false for this same-filesystem bind; using it here would
+recursively clone live Docker mounts on repeated startup and can break container
+restarts. The corrected check avoids those additional root binds.
+
 The script starts the gateway and installed Kela/Hermes hooks, plus the native storage supervisor when `/opt/kela-storage/.configured` exists. With storage configured, the bounded primary must mount successfully before startup continues. A partial wake lock keeps serving with the screen off. `stop.sh` is the existing gateway/dockerd shutdown helper and releases the wake lock; it is not a complete native-init/optional-service shutdown controller. Stop native init supervisors deliberately before maintenance, or they can restart the stack. `server/stop-bridge.sh` and `android/stop-storage.sh` stop their respective services separately.
 
 The native init image starts `phone-hardware`, `phone-stack` and `phone-sysutils` after `sys.boot_completed=1`. It also requires `/data/local/sysutils/bin/sysutilsd` from [DroidUtils](https://github.com/krashkanter/droidutils), started without `-boot`. Create Android `/data/local/server/disable-autostart` through recovery/rooted ADB to hold all startup wrappers during repairs. Logs are in `/data/local/server/boot-logs`.

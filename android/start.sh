@@ -2,7 +2,9 @@
 set -eu
 root=/data/local/debian
 # Make the chroot root a mountpoint, required by Docker's mount setup.
-mountpoint -q "$root" || mount --rbind "$root" "$root"
+# Android's mountpoint check compares device IDs and misses same-filesystem binds.
+# Inspect mountinfo so a repeat start cannot recursively clone live Docker mounts.
+grep -q "^[^ ]* [^ ]* [^ ]* [^ ]* $root " /proc/self/mountinfo || mount --rbind "$root" "$root"
 for name in dev sys proc; do
  mountpoint -q "$root/$name" || mount --rbind "/$name" "$root/$name"
 done
