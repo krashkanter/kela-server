@@ -30,15 +30,21 @@ disconnect behavior have not been tested; configure those when it is attached.
 - Native copyparty v1.20.26 provides authenticated manual upload/download,
   move and delete on `/primary`, and read access to offline `/secondary`.
 - A native supervisor restarts services and handles Wi-Fi address changes.
-  Copyparty listens on loopback and the Wi-Fi address at HTTPS port 8443, allowing
-  connections only from loopback and the current Wi-Fi subnet. It has no tunnel
-  or public gateway route. Other container subnets are denied.
+  Copyparty listens only on loopback HTTPS port 8443. A small native TCP proxy
+  running as Android shell UID 2000 forwards encrypted bytes from the Wi-Fi
+  address, also port 8443. It accepts only the current Wi-Fi subnet, has a
+  16-connection limit and cannot access secondary storage. It reads no file-server
+  credentials or TLS keys. There is no tunnel or public gateway route; container
+  subnets are denied before TLS forwarding.
 
 Native file service UID 2901 and downloader/controller UID 2902 use GID 41001
 and Android networking supplementary GID 3003. They drop all Linux capabilities
 and enable no-new-privileges. UIDs 21001/21002 were tested and rejected by
-Android's networking permission checks; verify unused system-range IDs when
-adapting to a different device. Primary ext4 default ACLs explicitly grant UIDs
+Android's networking permission checks. UIDs 2901/2902 support outbound and
+loopback traffic but direct Wi-Fi inbound traffic to UID 2901 also failed; the
+UID 2000 TCP proxy fixes that without sharing the secondary owner's identity
+with Hermes. Verify unused system-range IDs and inbound behavior when adapting
+to another device. Primary ext4 default ACLs explicitly grant UIDs
 2000, 2901 and 2902. Secondary's parent permits only UID 2901 to traverse it.
 Android's global SELinux mode remains Enforcing, with the existing userdebug
 permissive `su` domain for this stack; these are not confined SELinux services.
@@ -134,5 +140,8 @@ exactly beyond the 90 GB loop-device boundary returned ENOSPC without filling th
 phone. A saved paused job survived native service shutdown/restart, was resumed
 through the Hermes CLI, and completed; uploaded data also survived. Re-running
 the Android startup script succeeded without recreating existing containers.
+An external PC on Wi-Fi also verified the TLS certificate, authenticated listing,
+upload and file readback through the native TCP proxy. Hermes' container network
+was denied that LAN endpoint before authentication.
 This feature was added after the original ROM boot tests; no new phone reboot
 test was performed, and the storage deployment is not in the published OS images.

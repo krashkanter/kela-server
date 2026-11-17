@@ -36,9 +36,10 @@ def launch(name, uid, cmd):
         out.replace(out.with_suffix('.previous.log'))
     stream = out.open('ab')
     os.chmod(out, 0o600)
+    home = '/var/lib/kela-files' if uid == 2901 else ('/var/lib/kela-downloads' if uid == 2902 else '/')
     command = ['setpriv', '--reuid='+str(uid), '--regid=41001', '--groups=3003',
                '--inh-caps=-all', '--ambient-caps=-all', '--bounding-set=-all', '--no-new-privs',
-               'env', 'HOME=/var/lib/kela-files' if uid == 2901 else 'HOME=/var/lib/kela-downloads',
+               'env', 'HOME='+home,
                'TMPDIR=/var/lib/kela-files/tmp' if uid == 2901 else 'TMPDIR=/var/lib/kela-downloads/tmp', *cmd]
     child = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=stream, stderr=stream,
                              cwd='/', start_new_session=True)
@@ -103,16 +104,16 @@ if __name__ == '__main__':
                         time.sleep(.1)
         address, network = lan()
         if (address, network) != previous_lan:
-            stop_child('files')
+            stop_child('lan-proxy')
             previous_lan = (address, network)
         if 'files' not in children or children['files'].poll() is not None:
-            bind = '127.0.0.1' + (','+address if address else '')
-            allowed = '127.0.0.0/8' + (','+network if network else '')
             launch('files', 2901, ['python3', str(BASE/'copyparty-sfx.py'),
-                '-c', '/var/lib/kela-files/copyparty.conf', '-i', bind, '--ipa', allowed,
+                '-c', '/var/lib/kela-files/copyparty.conf', '-i', '127.0.0.1', '--ipa', '127.0.0.0/8',
                 '-p', '8443', '--https-only', '--no-crt', '--cert', '/var/lib/kela-files/server.pem',
                 '--no-thumb', '--no-mtag-ff', '--no-robots', '--no-logues', '--no-readme',
                 '--no-voldump', '--no-reload', '-j', '1'])
+        if address and ('lan-proxy' not in children or children['lan-proxy'].poll() is not None):
+            launch('lan-proxy', 2000, ['python3', str(BASE/'lan_proxy.py'), address, network])
         if time.monotonic() - last_guard > 10:
             last_guard = time.monotonic()
             from download_api import guard_space, rpc
@@ -125,6 +126,6 @@ if __name__ == '__main__':
                     pass
         time.sleep(2)
     # Save and stop downloads before releasing other services.
-    for name in ['controller', 'aria2', 'files']:
+    for name in ['lan-proxy', 'controller', 'aria2', 'files']:
         stop_child(name)
     (LOG/'supervisor.pid').unlink(missing_ok=True)
