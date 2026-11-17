@@ -1,0 +1,10 @@
+services:
+  hermes:
+    volumes:
+      - kela-primary:/buckets/primary
+      - /opt/kela-storage/tools:/opt/bucket-tools:ro
+      - /run/kela-downloads:/run/kela-downloads:ro
+volumes:
+  kela-primary:
+    external: true
+    name: kela-primary

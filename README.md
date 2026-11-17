@@ -10,4 +10,4 @@ Requirements:
 python3 -m unittest discover -s server
 ```
 
-[Setup and runtime paths](docs/SETUP.md) · [Credits](CREDITS.md) · [Kela Android app](https://github.com/krashkanter/kela) · [DroidUtils](https://github.com/krashkanter/droidutils) · [merlinx images](https://github.com/krashkanter/merlinx-os-releases/tree/lineage-24-server)
+[Setup and runtime paths](docs/SETUP.md) · [Storage](docs/STORAGE.md) · [Credits](CREDITS.md) · [Kela Android app](https://github.com/krashkanter/kela) · [DroidUtils](https://github.com/krashkanter/droidutils) · [merlinx images](https://github.com/krashkanter/merlinx-os-releases/tree/lineage-24-server)

@@ -10,7 +10,11 @@ chroot "$root" /bin/mount --make-rslave /
 mountpoint -q "$root/run" || mount -t tmpfs tmpfs "$root/run"
 chcon u:object_r:shell_data_file:s0 /data/local/server/docker.ext4
 mountpoint -q "$root/var/lib/docker" || mount -t ext4 -o loop,noatime /data/local/server/docker.ext4 "$root/var/lib/docker"
-mountpoint -q "$root/srv/bucket" || mount -o bind /data/local/server/bucket "$root/srv/bucket"
+if [ -f "$root/opt/kela-storage/.configured" ]; then
+ /data/local/server/mount-storage.sh
+else
+ mountpoint -q "$root/srv/bucket" || mount -o bind /data/local/server/bucket "$root/srv/bucket"
+fi
 ip rule show | grep -q '10000:.*172.28.0.0/16.*main' || ip rule add priority 10000 to 172.28.0.0/16 lookup main
 ip rule show | grep -q '10010:.*172.28.0.0/16.*wlan0' || ip rule add priority 10010 from 172.28.0.0/16 lookup wlan0
 # A partial wake lock keeps serving with the screen off; stop.sh releases it.
@@ -30,4 +34,5 @@ elif [ -f /data/local/server/enable-quick-tunnel ]; then
 fi
 [ ! -x /data/local/server/start-kela.sh ] || /data/local/server/start-kela.sh
 
+if [ -f "$root/opt/kela-storage/.configured" ]; then /data/local/server/start-storage.sh; fi
 [ ! -x /data/local/server/start-hermes.sh ] || /data/local/server/start-hermes.sh

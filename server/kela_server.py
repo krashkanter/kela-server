@@ -25,6 +25,32 @@ IDENTIFIER = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,255}$")
 POOL = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 JOBS = collections.OrderedDict()
 LOCK = threading.Lock()
+STORAGE_GRANTS = Path('/etc/kela/storage-grants.json')
+
+
+def validate_mounts(name, binds):
+    """Host paths belong to owner-managed Compose; reserved buckets need a grant."""
+    grants = {'kela-primary': ['phone-hermes']}
+    if STORAGE_GRANTS.exists():
+        configured = json.loads(STORAGE_GRANTS.read_text())
+        if not isinstance(configured, dict) or any(
+                not isinstance(k, str) or not isinstance(v, list) or
+                not all(isinstance(n, str) for n in v) for k, v in configured.items()):
+            raise ValueError('Invalid owner storage grants')
+        grants.update(configured)
+    for bind in binds:
+        parts = bind.split(':')
+        if len(parts) not in (2, 3) or (len(parts) == 3 and parts[2] not in ('ro', 'rw')):
+            raise ValueError('Mount format: volume:/container/path[:ro|rw]')
+        source, target = parts[:2]
+        if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}', source):
+            raise ValueError('Use named Docker volumes; host binds require owner-managed Compose')
+        if not target.startswith('/') or '..' in target.split('/'):
+            raise ValueError('Mount target must be an absolute container path without traversal')
+        if source in grants and name not in grants[source]:
+            raise ValueError('This container has no grant for the reserved storage volume')
+        if source.lower().startswith('kela-secondary'):
+            raise ValueError('Secondary storage is never available to containers')
 
 
 class DockerError(Exception):
@@ -108,6 +134,7 @@ def container_spec(data):
         raise ValueError("Environment format: KEY=value, one per line")
     if not isinstance(binds, list) or not all(isinstance(b, str) and ":" in b and len(b) < 4096 for b in binds):
         raise ValueError("Mount format: source:/container/path[:ro], one per line")
+    validate_mounts(name, binds)
     body = {"Image": image, "Env": environment, "ExposedPorts": exposed,
             "Labels": {"com.krashkanter.kela.managed": "true"},
             "HostConfig": {"PortBindings": bindings, "Binds": binds,
@@ -243,6 +270,8 @@ class Handler(BaseHTTPRequestHandler):
                 identifier(name)
                 self.respond(201, docker("POST", "/volumes/create", {"Name": name}))
             elif len(parts) == 3 and parts[:2] == ["v1", "volumes"] and method == "DELETE":
+                if parts[2] == 'kela-primary' or parts[2].lower().startswith('kela-secondary'):
+                    raise ValueError('Reserved storage volumes require owner-managed maintenance')
                 self.respond(200, docker("DELETE", "/volumes/" + identifier(parts[2])))
             else:
                 self.respond(404, {"error": "Not found"})

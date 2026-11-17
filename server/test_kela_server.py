@@ -8,6 +8,25 @@ import kela_server as kela
 
 
 class SpecTests(unittest.TestCase):
+    def test_storage_mount_isolation(self):
+        for source in ['/', '/srv', '/srv/bucket', '/srv/kela-secondary', '/proc/1/root',
+                       '/var/run/docker.sock', '../srv/bucket', 'kela-primary', 'kela-secondary']:
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                kela.container_spec({'name': 'unapproved', 'image': 'alpine', 'binds': [source+':/data']})
+        _, spec = kela.container_spec({'name': 'phone-hermes', 'image': 'alpine', 'binds': ['kela-primary:/data']})
+        self.assertEqual(spec['HostConfig']['Binds'], ['kela-primary:/data'])
+
+    def test_owner_can_grant_another_container_primary(self):
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        with TemporaryDirectory() as tmp:
+            config = Path(tmp)/'grants.json'
+            config.write_text('{"kela-primary": ["phone-hermes", "approved"]}')
+            with patch.object(kela, 'STORAGE_GRANTS', config):
+                kela.container_spec({'name': 'approved', 'image': 'alpine', 'binds': ['kela-primary:/data:ro']})
+                with self.assertRaises(ValueError):
+                    kela.container_spec({'name': 'other', 'image': 'alpine', 'binds': ['kela-primary:/data']})
+
     def test_ports_and_environment_are_structured(self):
         name, spec = kela.container_spec({"name": "test", "image": "nginx:alpine", "ports": ["127.0.0.1:8081:80", "5353:53/udp"], "environment": ["VALUE=a=b"], "binds": ["bucket:/data:ro"]})
         self.assertEqual(name, "test")
